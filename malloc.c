@@ -3,12 +3,14 @@
  *
  * @author Dario Sneidermanis
  *
- * TODO: calloc, realloc, check_memory_corruption
+ * TODO: split, malloc, free
+ *       calloc, realloc, check_memory_corruption
  *       use a fenwick tree to optimize find_bin to log n
  *       use a trie/balanced tree in big enough bins to optimize find_chunk to log n
  */
 
 #include "malloc.h"
+#include <assert.h>
 
 
 /*
@@ -60,6 +62,9 @@
  * Note: bin_sizes[0] is never used, since a free_header must fit in a free
  *       chunk
  */
+
+#define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
+
 static const size_t bin_sizes[] = {
 
 	     8,    16,    24,    32,    40,    48,    56,    64,    72,    80,
@@ -74,13 +79,6 @@ static const size_t bin_sizes[] = {
 	  0x2000000,  0x4000000,  0x8000000, 0x10000000, 0x20000000, 0x40000000,
 	 0x80000000
 };
-
-
-#define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
-
-
-#define FREE_STATUS  0
-#define INUSE_STATUS 1
 
 
 struct free_header {
@@ -106,6 +104,10 @@ struct footer {
 };
 
 
+#define FREE_STATUS  0
+#define INUSE_STATUS 1
+
+
 struct memory_context {
 
     size_t memory_size;
@@ -128,13 +130,13 @@ static struct memory_context* context;
  *
  * @param size  the size of the memory (in bytes)
  *
- * @return the bin position
+ * @return the bin index
  */
-inline static size_t find_bin ( size_t size ) {
-
-    assert( size < bin_sizes[ BIN_NUMBER - 1 ] );
+static size_t find_bin ( size_t size ) {
 
     size_t min_bin = 0, max_bin = BIN_NUMBER, curr_bin;
+
+    assert( size < bin_sizes[ BIN_NUMBER - 1 ] );
 
     while ( min_bin + 1 != max_bin ) {
 
@@ -152,12 +154,12 @@ inline static size_t find_bin ( size_t size ) {
 
 
 /**
- * Finds the first chunk if memory >= to a given size in a given bin
+ * Finds the first chunk of memory >= to a given size in a given bin
  *
  * @param bin   the bin to explore
  * @param size  the size of memory (in bytes)
  *
- * @return pointer to the chunk's fere header
+ * @return pointer to the chunk's free header
  */
 inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
 
@@ -203,9 +205,9 @@ inline static struct free_header* find_upper_chunk ( size_t bin, size_t size ) {
  * Adds a chunk of memory to the bins
  *
  * @param memory  free memory buffer
- * @param size    memory buffer size (in bytes)
+ * @param size    free memory buffer size (in bytes)
  */
-inline static void add_free_chunk ( void* memory, size_t size ) {
+static void add_free_chunk ( void* memory, size_t size ) {
 
     struct free_header* header;
     struct footer*      footer;
@@ -230,7 +232,7 @@ inline static void add_free_chunk ( void* memory, size_t size ) {
 
 
 /**
- * Adds a new memory buffer
+ * Adds a new memory area for allocations to the current memory context
  *
  * @param memory  memory buffer
  * @param size    memory buffer size (in bytes)
@@ -245,8 +247,11 @@ void add_malloc_buffer ( void* memory, size_t size ) {
 
     } *bound;
 
-    assert( size >= 2 * sizeof( struct bound ) + sizeof( struct free_header ) +
-                        sizeof( struct footer ) );
+    if ( size < sizeof( struct bound ) * 2 + sizeof( struct free_header ) +
+                sizeof( struct footer ) )
+    {
+        return;
+    }
 
     bound  = memory;
 
@@ -268,7 +273,11 @@ void add_malloc_buffer ( void* memory, size_t size ) {
 
 
 /**
- * Initializes a new malloc context with the given memory buffer
+ * Creates a new malloc context in the given memory buffer. Uses the remaining
+ * memory for allocations
+ *
+ * Must be called before any malloc or free (unless a memory context has been
+ * set manually)
  *
  * @param memory  memory buffer
  * @param size    memory buffer size (in bytes)
@@ -294,5 +303,4 @@ void init_malloc ( void* memory, size_t size ) {
     add_malloc_buffer( memory, size );
 }
 
-/* TODO */
 

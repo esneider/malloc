@@ -8,54 +8,29 @@
 #define _MALLOC_H_
 
 
-/*
- * Needs size_t, NULL and assert()
- */
 #include <stddef.h>
-#include <assert.h>
 
 
 /**
- * Initializes the given memory for malloc use.
+ * Adds a new memory area for allocations to the current memory context
  *
- * Must be called before any malloc or free.
- *
- * @param size    the size of the given memory (in bytes)
- * @param memory  chunk of memory to be used
- *
+ * @param memory  memory buffer
+ * @param size    memory buffer size (in bytes)
  */
-void init_malloc ( size_t size, void* memory );
+void add_malloc_buffer ( void* memory, size_t size );
 
 
 /**
- * Allocstes a chunk of memory of a given size.
+ * Creates a new malloc context in the given memory buffer. Uses the remaining
+ * memory for allocations
  *
- * @param size  the size trying to be allocated (in bytes)
+ * Must be called before any malloc or free (unless a memory context has been
+ * set manually)
  *
- * @return a pointer to the allocated memory, or NULL if an error occurred
- *
- * For more info on the algorithm idea:
- * @see http://gee.cs.oswego.edu/dl/html/malloc.html
- *
+ * @param memory  memory buffer
+ * @param size    memory buffer size (in bytes)
  */
-void* malloc ( size_t size );
-
-
-/**
- * Frees the previously allocated space.
- *
- * @param data  a pointer to the memory to be freed
- *
- */
-void free ( void* date );
-
-
-/**
- * Print memory data to screen.
- * Intended for debugging.
- *
- */
-void print_memory_data ( void );
+void init_malloc ( void* memory, size_t size ) {
 
 
 #endif /* _MALLOC_H_ */
