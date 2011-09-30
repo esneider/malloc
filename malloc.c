@@ -53,55 +53,10 @@
 
 
 /*
- * number of bins in the bin table
- */
-#define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
-
-/*
- * size of the bin table
- */
-#define BIN_TABLE_SIZE   ( BIN_NUMBER * FREE_HEADER_SIZE )
-
-/*
- * starting position in memory of the bin table
- */
-#define BIN_TABLE_START  0
-
-/*
- * open (+1) ending position in memory of the bin table
- */
-#define BIN_TABLE_END    ( BIN_TABLE_START + BIN_TABLE_SIZE )
-
-/*
- * bin array
- */
-#define BINS  ( (struct free_header*)(memory + BIN_TABLE_START ) )
-
-/*
- * position in memory of the i-th bin
- */
-#define BIN_ABSOLUTE_POS(i) ( (i) * FREE_HEADER_SIZE + BIN_TABLE_START )
-
-/*
- * determines if the i-th bin is empty
- */
-#define BIN_ISEMPTY(i) ( BINS[i].next_pos == BIN_ABSOLUTE_POS(i) )
-
-/*
- * starting position in memory of "memory available to the user"
- */
-#define MEMORY_START     BIN_TABLE_END
-
-/*
- * open (+1) ending position in memory of "memory available to the user"
- */
-#define MEMORY_END       memory_size
-
-
-/*
  * Bin sizes from 16 bytes to 2 GB
  *
- * Note: bin_sizes[0] is never used, since a free_header must fit in a free chunk
+ * Note: bin_sizes[0] is never used, since a free_header must fit in a free
+ *       chunk
  */
 static const size_t bin_sizes[] = {
 
@@ -118,6 +73,11 @@ static const size_t bin_sizes[] = {
 	 0x80000000
 };
 
+/*
+ * number of bins in the bin table
+ */
+#define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
+
 
 /*
  * Possible values of the status flag in a memory chunk header
@@ -127,28 +87,21 @@ static const size_t bin_sizes[] = {
 
 
 /*
- * Header of a free memory chunk, and macros to get its size, and to get
- * the header from a specific position in memory
+ * Header of a free memory chunk
  */
-#define FREE_HEADER_SIZE     ( sizeof( struct free_header ) )
-#define GET_FREE_HEADER(pos) ( (struct free_header*)&memory[pos] )
-
 struct free_header {
 
 	unsigned int status : 1;
 	size_t size : 31;
-	size_t prev_pos : 32;
-	size_t next_pos : 32;
+
+	struct free_header* prev_pos;
+	struct free_header* next_pos;
 };
 
 
 /*
- * Header of a memory chunk in use, and macros to get its size, and to get
- * the header from a specific position in memory
+ * Header of a memory chunk in use
  */
-#define INUSE_HEADER_SIZE     ( sizeof( struct inuse_header ) )
-#define GET_INUSE_HEADER(pos) ( (struct inuse_header*)&memory[pos] )
-
 struct inuse_header {
 
 	unsigned int status : 1;
@@ -157,38 +110,153 @@ struct inuse_header {
 
 
 /*
- * Footer of a memory chunk, and macros to get its size, and to get
- * the footer from a specific position in memory
+ * Footer of a memory chunk
  */
-#define FOOTER_SIZE     ( sizeof( struct footer ) )
-#define GET_FOOTER(pos) ( (struct footer*)&memory[pos] )
-
 struct footer {
 
 	size_t size : 32;
 };
 
 
-/*
- * Chunk of memory that holds at least the bin table
+
+struct memory_context {
+
+    size_t memory_size;
+    size_t free_memory;
+    size_t last_chunk_size;
+
+    struct free_header* last_chunk;
+    struct free_header  bins[ BIN_NUMBER ];
+};
+
+
+
+#define BIN_ISEMPTY(i) ( BINS[i].next_pos == BIN_ABSOLUTE_POS(i) )
+
+
+static struct memory_context* context;
+
+
+/**
+ * Performs a binary search to find the first bin of size >= to a given size
  *
- * Note: memory[0..3] are not used.
+ * @param size  the size of the memory
+ *
+ * @return the bin position
  */
-static char*  memory      = NULL;
-static size_t memory_size = 0;
+inline static size_t find_bin ( size_t size ) {
 
-/*
- * Total free "memory available to the user"
+    if ( size > bin_sizes[ BIN_NUMBER - 1 ] )
+        return BIN_NUMBER;
+
+    size_t min_bin = 0, max_bin = BIN_NUMBER, curr_bin;
+
+    while ( min_bin + 1 != max_bin ) {
+
+        curr_bin = ( min_bin + max_bin ) / 2;
+
+        if ( bin_sizes[ curr_bin ] <= size )
+
+            min_bin = curr_bin;
+        else
+            max_bin = curr_bin;
+    }
+
+    return min_bin;
+}
+
+
+/**
+ * Finds the first chunk if memory >= to a given size in a given bin
+ *
+ * @param bin   the bin to explore
+ * @param size  the size of memory
+ *
+ * @return pointer to the chunk's fere header
  */
-static size_t free_memory = 0;
+inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
+
+    // TODO
+}
 
 
-/*
- * Last chunk used to allocate. These are used to improve locallity.
+/**
+ * Adds a new memory buffer
+ *
+ * @param memory  memory buffer
+ * @param size    memory buffer size
  */
-static size_t last_chunk      = 0;
-static size_t last_chunk_size = 0;
+void add_malloc_buffer ( void* memory, size_t size ) {
 
+
+    struct bound {
+
+        struct inuse_header header;
+        struct footer       footer;
+
+    } *bound;
+
+    assert( size >= 2 * sizeof( struct bound ) + sizeof( struct free_header ) +
+                        sizeof( struct footer ) );
+
+    bound  = memory;
+
+    bound->header.status = INUSE_STATUS;
+    bound->header.size   = sizeof( struct bound );
+    bound->footer.size   = sizeof( struct bound );
+
+    bound = (void*)( (char*)memory + size - sizeof( struct bound ) );
+
+    bound->header.status = INUSE_STATUS;
+    bound->header.size   = sizeof( struct bound );
+    bound->footer.size   = sizeof( struct bound );
+
+    memory += sizeof( struct bound );
+    size   -= sizeof( struct bound ) * 2;
+
+    struct free_header* header = memory;
+
+    header->status = FREE_STATUS;
+    header->size   = size;
+
+    size_t bin = find_bin( memory, size );
+    assert( bin < BIN_NUMBER );
+
+    header->next_pos = /**/;
+    header->prev_pos = /**/;
+
+    struct footer* footer = (void*)( (char*)memory + size - sizeof( struct footer ) );
+
+    footer->size = size;
+}
+
+
+/**
+ * Initializes a new malloc context with the given memory buffer
+ *
+ * @param memory  memory buffer
+ * @param size    memory buffer size
+ */
+void init_malloc ( void* memory, size_t size ) {
+
+    assert( size >= sizeof( struct memory_context ) );
+
+    context = (struct memory_context*)memory;
+    memory += sizeof( struct memory_context );
+    size   -= sizeof( struct memory_context );
+
+
+    context->free_memory = context->memory_size = context->last_chunk_size = 0;
+
+    for ( struct free_header* bin = context->bins; bin < memory; bin++ ) {
+
+        bin->size     = sizeof( struct free_header );
+        bin->next_pos = bin;
+        bin->prev_pos = bin;
+    }
+
+    add_malloc_buffer( memory, size );
+}
 
 /**
  * Performs a binary serach to find the first bin of size >= to a given value
