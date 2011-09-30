@@ -189,6 +189,32 @@ inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
 
 
 /**
+ * Finds the first chunk of memory > to a given size in a given bin
+ *
+ * Note the use of > instead of >=, like in find_chunk. This version
+ * is used to implement a tie breaking least-recently-used strategy,
+ * which mantains (for some reason) low memory fragmentation
+ *
+ * @param bin   the bin to explore
+ * @param size  the size of memory
+ *
+ * @return pointer to the chunk's free header
+ */
+inline static struct free_header* find_upper_chunk ( size_t bin, size_t size ) {
+
+    struct free_header* chunk = context->bins + bin;
+
+    do {
+
+        chunk = chunk->next;
+
+    } while ( chunk != context->bins + bin && chunk->size <= size );
+
+    return chunk;
+}
+
+
+/**
  * Adds a new memory buffer
  *
  * @param memory  memory buffer
