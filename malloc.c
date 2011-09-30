@@ -126,14 +126,13 @@ static struct memory_context* context;
 /**
  * Performs a binary search to find the first bin of size >= to a given size
  *
- * @param size  the size of the memory
+ * @param size  the size of the memory (in bytes)
  *
  * @return the bin position
  */
 inline static size_t find_bin ( size_t size ) {
 
-    if ( size > bin_sizes[ BIN_NUMBER - 1 ] )
-        return BIN_NUMBER;
+    assert( size < bin_sizes[ BIN_NUMBER - 1 ] );
 
     size_t min_bin = 0, max_bin = BIN_NUMBER, curr_bin;
 
@@ -156,7 +155,7 @@ inline static size_t find_bin ( size_t size ) {
  * Finds the first chunk if memory >= to a given size in a given bin
  *
  * @param bin   the bin to explore
- * @param size  the size of memory
+ * @param size  the size of memory (in bytes)
  *
  * @return pointer to the chunk's fere header
  */
@@ -182,7 +181,7 @@ inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
  * which mantains (for some reason) low memory fragmentation
  *
  * @param bin   the bin to explore
- * @param size  the size of memory
+ * @param size  the size of memory (in bytes)
  *
  * @return pointer to the chunk's free header
  */
@@ -201,10 +200,40 @@ inline static struct free_header* find_upper_chunk ( size_t bin, size_t size ) {
 
 
 /**
+ * Adds a chunk of memory to the bins
+ *
+ * @param memory  free memory buffer
+ * @param size    memory buffer size (in bytes)
+ */
+inline static void add_free_chunk ( void* memory, size_t size ) {
+
+    struct free_header* header;
+    struct footer*      footer;
+
+    assert( size >= sizeof( struct free_header ) + sizeof( struct footer ) );
+
+    header = memory;
+
+    header->status = FREE_STATUS;
+    header->size   = size;
+
+    header->next_pos = find_upper_chunk( find_bin( memory, size ), size );
+    header->prev_pos = header->next_pos->prev_pos;
+
+    header->next_pos->prev_pos = header;
+    header->prev_pos->next_pos = header;
+
+    footer = (void*)( (char*)memory + size - sizeof( struct footer ) );
+
+    footer->size = size;
+}
+
+
+/**
  * Adds a new memory buffer
  *
  * @param memory  memory buffer
- * @param size    memory buffer size
+ * @param size    memory buffer size (in bytes)
  */
 void add_malloc_buffer ( void* memory, size_t size ) {
 
@@ -234,23 +263,7 @@ void add_malloc_buffer ( void* memory, size_t size ) {
     memory += sizeof( struct bound );
     size   -= sizeof( struct bound ) * 2;
 
-    struct free_header* header = memory;
-
-    header->status = FREE_STATUS;
-    header->size   = size;
-
-    size_t bin = find_bin( memory, size );
-    assert( bin < BIN_NUMBER );
-
-    header->next_pos = find_upper_chunk( bin, size );
-    header->prev_pos = header->next_pos->prev_pos;
-
-    header->next_pos->prev_pos = header;
-    header->prev_pos->next_pos = header;
-
-    struct footer* footer = (void*)( (char*)memory + size - sizeof( struct footer ) );
-
-    footer->size = size;
+    add_free_chunk( memory, size );
 }
 
 
@@ -258,7 +271,7 @@ void add_malloc_buffer ( void* memory, size_t size ) {
  * Initializes a new malloc context with the given memory buffer
  *
  * @param memory  memory buffer
- * @param size    memory buffer size
+ * @param size    memory buffer size (in bytes)
  */
 void init_malloc ( void* memory, size_t size ) {
 
