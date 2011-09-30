@@ -111,7 +111,6 @@ struct footer {
 
 struct memory_context {
 
-    size_t memory_size;
     size_t free_memory;
     size_t last_chunk_size;
 
@@ -270,6 +269,8 @@ void add_malloc_buffer ( void* memory, size_t size ) {
     size  -= sizeof( struct bound ) * 2;
 
     add_free_chunk( memory, size );
+
+    context->free_memory += size;
 }
 
 
@@ -293,7 +294,7 @@ void init_malloc ( void* memory, size_t size ) {
     memory  = (char*)memory + sizeof( struct memory_context );
     size   -= sizeof( struct memory_context );
 
-    context->free_memory = context->memory_size = context->last_chunk_size = 0;
+    context->free_memory = context->last_chunk_size = 0;
 
     for ( bin = context->bins; (void*)bin < memory; bin++ ) {
 
