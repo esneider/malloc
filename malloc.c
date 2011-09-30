@@ -256,8 +256,11 @@ void add_malloc_buffer ( void* memory, size_t size ) {
     size_t bin = find_bin( memory, size );
     assert( bin < BIN_NUMBER );
 
-    header->next_pos = /**/;
-    header->prev_pos = /**/;
+    header->next_pos = find_upper_chunk( bin, size );
+    header->prev_pos = header->next_pos->prev_pos;
+
+    header->next_pos->prev_pos = header;
+    header->prev_pos->next_pos = header;
 
     struct footer* footer = (void*)( (char*)memory + size - sizeof( struct footer ) );
 
