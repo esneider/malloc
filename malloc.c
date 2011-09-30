@@ -277,6 +277,9 @@ void init_malloc ( void* memory, size_t size ) {
 }
 
 
+// TODO !!!
+
+
 /**
  * Splits a free chunk of memory in two chunks, the first of a given size, and
  * the second goes back to the set of free chunks
