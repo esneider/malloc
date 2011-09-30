@@ -3,7 +3,9 @@
  *
  * @author Dario Sneidermanis
  *
- * TODO: calloc, realloc, check_memory_corruption, add_memory_chunk
+ * TODO: calloc, realloc, check_memory_corruption
+ *       use a fenwick tree to optimize find_bin to log n
+ *       use a trie/balanced tree in big enough bins to optimize find_chunk to log n
  */
 
 #include "malloc.h"
@@ -115,6 +117,9 @@ struct memory_context {
 };
 
 
+/**
+ * Global current memory context
+ */
 static struct memory_context* context;
 
 
