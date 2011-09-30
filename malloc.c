@@ -176,7 +176,15 @@ inline static size_t find_bin ( size_t size ) {
  */
 inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
 
-    // TODO
+    struct free_header* chunk = context->bins + bin;
+
+    do {
+
+        chunk = chunk->next;
+
+    } while ( chunk != context->bins + bin && chunk->size < size );
+
+    return chunk;
 }
 
 
