@@ -6,7 +6,8 @@
  * TODO: split, malloc, free
  *       calloc, realloc, check_memory_corruption
  *       use a fenwick tree to optimize find_bin to log n
- *       use a trie/balanced tree in big enough bins to optimize find_chunk to log n
+ *       use a trie/balanced tree in big enough bins to optimize find_chunk to
+ *           log n
  */
 
 #include "malloc.h"
@@ -84,7 +85,7 @@ static const size_t bin_sizes[] = {
 struct free_header {
 
 	unsigned int status : 1;
-	size_t size : 31;
+	unsigned int size : 31;
 
 	struct free_header* prev_pos;
 	struct free_header* next_pos;
@@ -94,13 +95,13 @@ struct free_header {
 struct inuse_header {
 
 	unsigned int status : 1;
-	size_t size : 31;
+	unsigned int size : 31;
 };
 
 
 struct footer {
 
-	size_t size : 32;
+	unsigned int size : 32;
 };
 
 
@@ -167,7 +168,7 @@ inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
 
     do {
 
-        chunk = chunk->next;
+        chunk = chunk->next_pos;
 
     } while ( chunk != context->bins + bin && chunk->size < size );
 
@@ -193,7 +194,7 @@ inline static struct free_header* find_upper_chunk ( size_t bin, size_t size ) {
 
     do {
 
-        chunk = chunk->next;
+        chunk = chunk->next_pos;
 
     } while ( chunk != context->bins + bin && chunk->size <= size );
 
@@ -219,7 +220,7 @@ static void add_free_chunk ( void* memory, size_t size ) {
     header->status = FREE_STATUS;
     header->size   = size;
 
-    header->next_pos = find_upper_chunk( find_bin( memory, size ), size );
+    header->next_pos = find_upper_chunk( find_bin( size ), size );
     header->prev_pos = header->next_pos->prev_pos;
 
     header->next_pos->prev_pos = header;
@@ -265,8 +266,8 @@ void add_malloc_buffer ( void* memory, size_t size ) {
     bound->header.size   = sizeof( struct bound );
     bound->footer.size   = sizeof( struct bound );
 
-    memory += sizeof( struct bound );
-    size   -= sizeof( struct bound ) * 2;
+    memory = (char*)memory + sizeof( struct bound );
+    size  -= sizeof( struct bound ) * 2;
 
     add_free_chunk( memory, size );
 }
@@ -284,16 +285,17 @@ void add_malloc_buffer ( void* memory, size_t size ) {
  */
 void init_malloc ( void* memory, size_t size ) {
 
+    struct free_header* bin;
+
     assert( size >= sizeof( struct memory_context ) );
 
-    context = (struct memory_context*)memory;
-    memory += sizeof( struct memory_context );
+    context = memory;
+    memory  = (char*)memory + sizeof( struct memory_context );
     size   -= sizeof( struct memory_context );
-
 
     context->free_memory = context->memory_size = context->last_chunk_size = 0;
 
-    for ( struct free_header* bin = context->bins; bin < memory; bin++ ) {
+    for ( bin = context->bins; (void*)bin < memory; bin++ ) {
 
         bin->size     = sizeof( struct free_header );
         bin->next_pos = bin;

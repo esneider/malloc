@@ -30,7 +30,7 @@ void add_malloc_buffer ( void* memory, size_t size );
  * @param memory  memory buffer
  * @param size    memory buffer size (in bytes)
  */
-void init_malloc ( void* memory, size_t size ) {
+void init_malloc ( void* memory, size_t size );
 
 
 #endif /* _MALLOC_H_ */
