@@ -234,11 +234,12 @@ static void add_free_chunk ( void* memory, size_t size ) {
 /**
  * Adds a new memory area for allocations to the current memory context
  *
+ * The buffer should be < 2 GB
+ *
  * @param memory  memory buffer
  * @param size    memory buffer size (in bytes)
  */
 void add_malloc_buffer ( void* memory, size_t size ) {
-
 
     struct bound {
 
