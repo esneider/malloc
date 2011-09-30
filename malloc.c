@@ -73,22 +73,14 @@ static const size_t bin_sizes[] = {
 	 0x80000000
 };
 
-/*
- * number of bins in the bin table
- */
+
 #define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
 
 
-/*
- * Possible values of the status flag in a memory chunk header
- */
 #define FREE_STATUS  0
 #define INUSE_STATUS 1
 
 
-/*
- * Header of a free memory chunk
- */
 struct free_header {
 
 	unsigned int status : 1;
@@ -99,9 +91,6 @@ struct free_header {
 };
 
 
-/*
- * Header of a memory chunk in use
- */
 struct inuse_header {
 
 	unsigned int status : 1;
@@ -109,14 +98,10 @@ struct inuse_header {
 };
 
 
-/*
- * Footer of a memory chunk
- */
 struct footer {
 
 	size_t size : 32;
 };
-
 
 
 struct memory_context {
@@ -128,10 +113,6 @@ struct memory_context {
     struct free_header* last_chunk;
     struct free_header  bins[ BIN_NUMBER ];
 };
-
-
-
-#define BIN_ISEMPTY(i) ( BINS[i].next_pos == BIN_ABSOLUTE_POS(i) )
 
 
 static struct memory_context* context;
@@ -293,131 +274,6 @@ void init_malloc ( void* memory, size_t size ) {
     }
 
     add_malloc_buffer( memory, size );
-}
-
-/**
- * Performs a binary serach to find the first bin of size >= to a given value
- *
- * @param size  the size trying to be allocated (in bytes)
- *
- * @return the number of the bin, or 0 if an error ocurred
- *
- */
-inline static size_t find_bin ( size_t size ) {
-
-	if ( size > bin_sizes[ BIN_NUMBER - 1 ] )
-		return 0;
-
-	size_t min_bin = 0, max_bin = BIN_NUMBER , curr_bin;
-
-	while( min_bin + 1 != max_bin ) {
-
-		curr_bin = ( min_bin + max_bin ) >> 1;
-
-		if ( bin_sizes[curr_bin] <= size )
-			min_bin = curr_bin;
-		else
-			max_bin = curr_bin;
-	}
-
-	return min_bin;
-}
-
-
-/**
- * Finds the first chunk of memory >= to a given size in a given bin
- *
- * @param bin   the bin to explore
- * @param size  the minimum size of the chunk
- *
- * @return the starting position of the chunk
- *
- */
-inline static size_t find_chunk ( size_t bin, size_t size ) {
-
-	size_t chunk = BINS[bin].next_pos;
-
-	while( chunk != BIN_ABSOLUTE_POS( bin ) &&
-		   GET_FREE_HEADER( chunk )->size < size )
-    {
-		chunk = GET_FREE_HEADER( chunk )->next_pos;
-	}
-
-	return chunk;
-}
-
-
-/**
- * Finds the first chunk of memory > to a given size in a given bin.
- *
- * Note the use of > instead of >=, like in find_chunk. This version
- * is used to implement a tie breaking least-recently-used strategy,
- * which maintains (for some reason) low memory fragmentation
- *
- * @param bin   the bin to explore
- * @param size  the minimum size of the chunk
- *
- * @return the starting position of the chunk
- *
- */
-inline static size_t find_upper_chunk ( size_t bin, size_t size ) {
-
-	size_t chunk = BINS[bin].next_pos;
-
-	while( chunk != BIN_ABSOLUTE_POS( bin ) &&
-	       GET_FREE_HEADER( chunk )->size <= size )
-    {
-
-		chunk = GET_FREE_HEADER( chunk )->next_pos;
-	}
-
-	return chunk;
-}
-
-
-/**
- * Initializes the given memory for malloc use.
- *
- * Must be called before any malloc or free.
- *
- * @param size           the size of the given memory (in bytes)
- * @param memory_buffer  chunk of memory to be used
- *
- */
-void init_malloc ( size_t size, void* memory_buffer ) {
-
-    assert( size > MEMORY_START );
-
-    /* init globals */
-    memory          = memory_buffer;
-    memory_size     = size;
-	free_memory     = size - MEMORY_START;
-    last_chunk_size = 0;
-
-	/* set bins */
-	for( size_t i = 0; i < BIN_NUMBER; i++ ) {
-
-		BINS[i].size     = FREE_HEADER_SIZE;
-		BINS[i].next_pos = BIN_ABSOLUTE_POS(i);
-		BINS[i].prev_pos = BIN_ABSOLUTE_POS(i);
-	}
-
-	size_t bin = find_bin( size - MEMORY_START );
-	BINS[bin].next_pos = MEMORY_START;
-	BINS[bin].prev_pos = MEMORY_START;
-
-	/* set header */
-	struct free_header* main_memory_header = GET_FREE_HEADER( MEMORY_START );
-
-	main_memory_header->status   = FREE_STATUS;
-	main_memory_header->size     = size - MEMORY_START;
-	main_memory_header->prev_pos = BIN_ABSOLUTE_POS( bin );
-	main_memory_header->next_pos = BIN_ABSOLUTE_POS( bin );
-
-	/* set footer */
-	struct footer* main_memory_footer = GET_FOOTER( MEMORY_END - FOOTER_SIZE );
-
-	main_memory_footer->size = size - MEMORY_START;
 }
 
 
