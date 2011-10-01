@@ -81,22 +81,6 @@ struct footer {
 };
 
 
-struct memory_context {
-
-    size_t free_memory;
-    size_t last_chunk_size;
-
-    struct free_header* last_chunk;
-    struct free_header  bins[ BIN_NUMBER ];
-};
-
-
-/**
- * Global current memory context
- */
-static struct memory_context* context;
-
-
 /**
  * Bin sizes from 16 bytes to 2 GB
  *
@@ -120,6 +104,22 @@ static const size_t bin_sizes[] = {
 	  0x2000000,  0x4000000,  0x8000000, 0x10000000, 0x20000000, 0x40000000,
 	 0x80000000
 };
+
+
+struct memory_context {
+
+    size_t free_memory;
+    size_t last_chunk_size;
+
+    struct free_header* last_chunk;
+    struct free_header  bins[ BIN_NUMBER ];
+};
+
+
+/**
+ * Global current memory context
+ */
+static struct memory_context* context;
 
 
 /**
@@ -548,7 +548,7 @@ void* check_malloc ( void ) {
 }
 
 
-/*
+
 
 #include <stdio.h>
 
@@ -612,6 +612,6 @@ int main ( void ) {
 
     return 0;
 }
-
+/*
 */
 
