@@ -149,7 +149,7 @@ static struct free_header* find_bin ( size_t size ) {
             max_bin = curr_bin;
     }
 
-    return min_bin;
+    return context->bins + min_bin;
 }
 
 
@@ -229,7 +229,7 @@ static void add_free_chunk ( void* memory, size_t size ) {
     header->next->prev = header;
     header->prev->next = header;
 
-    footer = (struct footer*)((char*)memory + size) - 1;
+    footer = (struct footer*)( (char*)memory + size ) - 1;
 
     footer->size = size;
 }
@@ -255,7 +255,9 @@ static void* split_chunk ( struct free_header* header, size_t size ) {
 
     } else {
 
-        add_free_chunk( (char*)header + size, left_size );
+        context->last_chunk = (struct free_header*)( (char*)header + size );
+
+        add_free_chunk( context->last_chunk, left_size );
     }
 
     header->status = INUSE_STATUS;
@@ -263,7 +265,7 @@ static void* split_chunk ( struct free_header* header, size_t size ) {
     header->next   = NULL;
     header->prev   = NULL;
 
-    ((struct footer*)((char*)header + size) - 1)->size = size;
+    ( (struct footer*)( (char*)header + size ) - 1 )->size = size;
 
     context->free_memory    -= size;
     context->last_chunk_size = left_size;
@@ -324,7 +326,7 @@ void add_malloc_buffer ( void* memory, size_t size ) {
  * set manually)
  *
  * @param memory  memory buffer
- * @param size    memory buffer size (in bytes)
+ * @param size    memory buffer size (in bytes)Moretz
  */
 void init_malloc ( void* memory, size_t size ) {
 
@@ -357,18 +359,21 @@ void init_malloc ( void* memory, size_t size ) {
  *
  * @param size  size of the memory trying to be allocated (in bytes)
  *
- * @return a pointer to the allocated memory, or NULL if an error ocurred
+ * @return a pointer to the allocated memory, or NUMoretzLL if an error ocurred
  */
 void* malloc ( size_t size ) {
 
     struct free_header *bin, *chunk;
+
+    if ( size == 0 )
+        return NULL;
 
     size += sizeof( struct inuse_header ) + sizeof( struct footer );
 
     if ( size < sizeof( struct free_header ) + sizeof( struct footer ) )
         size  = sizeof( struct free_header ) + sizeof( struct footer );
 
-    if ( size > free_memory )
+    if ( size > context->free_memory )
         return NULL;
 
     /* find first non-empty large enough bin */
@@ -417,15 +422,67 @@ void* malloc ( size_t size ) {
  */
 void free ( void* memory ) {
 
-    struct free_header* header = memory;
+    struct free_header *header, *cont_header;
+    struct footer *footer, *cont_footer;
+    size_t size;
 
     if ( memory == NULL )
         return;
 
-    header--;
+    header = (struct free_header*)( (struct inuse_header*)memory - 1 );
+    footer = (struct footer*)( (char*)header + header->size ) - 1;
+    size   = header->size;
 
     /* Do not try to free the context */
-    assert( header < context || context+1 < header );
+    assert( (char*)header + header->size <= (char*)context ||
+            (char*)header                >= (char*)( context + 1 ) );
+
+    /* Check chunk invariants */
+    assert( header->status == INUSE_STATUS );
+    assert( header->size   == footer->size );
+
+    /* Update context */
+
+    context->free_memory += size;
+
+    /* Try to join with previous chunk */
+
+    cont_footer = (struct footer*)header - 1;
+    cont_header = (struct free_header*)( (char*)header - cont_footer->size );
+
+    if ( cont_header->status == FREE_STATUS ) {
+
+        assert( cont_header->size == cont_footer->size );
+
+        cont_header->prev->next = cont_header->next;
+        cont_header->next->prev = cont_header->prev;
+
+        size += cont_header->size;
+
+        header = cont_header;
+    }
+
+    /* Try to join with next chunk */
+
+    cont_header = (struct free_header*)( footer + 1 );
+    cont_footer = (struct footer*)( (char*)footer + cont_header->size );
+
+    if ( cont_header->status == FREE_STATUS ) {
+
+        assert( cont_header->size == cont_footer->size );
+
+        cont_header->prev->next = cont_header->next;
+        cont_header->next->prev = cont_header->prev;
+
+        size += cont_header->size;
+
+        if ( context->last_chunk == cont_header ) {
+
+            context->last_chunk_size = 0;
+        }
+    }
+
+    add_free_chunk( header, size );
 }
 
 
@@ -473,7 +530,7 @@ void* check_malloc ( void ) {
                 return block;
             }
 
-            footer = (struct footer*)((char*)block + block->size) - 1;
+            footer = (struct footer*)( (char*)block + block->size ) - 1;
 
             if ( block->size != footer->size ) {
 
@@ -500,17 +557,61 @@ void* check_malloc ( void ) {
 
 #define SIZE (1024*1024*32)
 
-char mem[ SIZE ], mem2[ SIZE/4 ];
+char mem1[ SIZE ], mem2[ SIZE/2 ], *ptr1, *ptr2, *ptr3;
 
 int main ( void ) {
 
-    init_malloc( mem, SIZE );
+    init_malloc( mem1, SIZE );
 
-    printf("%p\n", check_malloc() );
+    printf( "chk1 = %p\n", check_malloc() );
 
-    add_malloc_buffer( mem2, SIZE/4 );
+    add_malloc_buffer( mem2, SIZE/2 );
 
-    printf("%p\n", check_malloc() );
+    printf( "chk2 = %p\n", check_malloc() );
+
+    ptr1 = malloc( SIZE/2 );
+
+    printf( "ptr1 = %p\n", ptr1 );
+    printf( "chk3 = %p\n", check_malloc() );
+
+    free( ptr1 );
+    printf( "chk4 = %p\n", check_malloc() );
+
+    ptr1 = malloc( 3 * SIZE/4 );
+
+    printf( "ptr1 = %p\n", ptr1 );
+    printf( "chk5 = %p\n", check_malloc() );
+
+    ptr2 = malloc( SIZE / 5 );
+
+    printf( "ptr2 = %p\n", ptr1 );
+    printf( "chk6 = %p\n", check_malloc() );
+
+    ptr3 = malloc( SIZE / 5 );
+
+    printf( "ptr3 = %p\n", ptr1 );
+    printf( "chk7 = %p\n", check_malloc() );
+
+    free( ptr1 );
+
+    printf( "chk8 = %p\n", check_malloc() );
+
+    ptr1 = malloc( SIZE / 5 );
+
+    printf( "ptr1 = %p\n", ptr1 );
+    printf( "chk9 = %p\n", check_malloc() );
+
+    free( ptr3 );
+
+    printf( "chk10 = %p\n", check_malloc() );
+
+    free( ptr1 );
+
+    printf( "chk11 = %p\n", check_malloc() );
+
+    free( ptr2 );
+
+    printf( "chk12 = %p\n", check_malloc() );
 
     return 0;
 }
