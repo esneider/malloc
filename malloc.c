@@ -128,7 +128,7 @@ static struct memory_context* context;
 /**
  * Performs a binary search to find the first bin of size >= to a given size
  *
- * @param size  the size of the memory (in bytes)
+ * @param size  size of the memory (in bytes)
  *
  * @return the bin index
  */
@@ -156,8 +156,8 @@ static size_t find_bin ( size_t size ) {
 /**
  * Finds the first chunk of memory >= to a given size in a given bin
  *
- * @param bin   the bin to explore
- * @param size  the size of memory (in bytes)
+ * @param bin   bin to explore
+ * @param size  size of memory (in bytes)
  *
  * @return pointer to the chunk's free header
  */
@@ -182,8 +182,8 @@ inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
  * is used to implement a tie breaking least-recently-used strategy,
  * which mantains (for some reason) low memory fragmentation
  *
- * @param bin   the bin to explore
- * @param size  the size of memory (in bytes)
+ * @param bin   bin to explore
+ * @param size  size of memory (in bytes)
  *
  * @return pointer to the chunk's free header
  */
@@ -228,6 +228,43 @@ static void add_free_chunk ( void* memory, size_t size ) {
     footer = (struct footer*)((char*)memory + size) - 1;
 
     footer->size = size;
+}
+
+
+/**
+ * Splits a free chunk of memory in two chunks, the first of a specified size,
+ * and the second goes back to the bins of free chunks
+ *
+ * @param header  pointer to the header of a free memory chunk
+ * @param size    size of the desired chunk
+ *
+ * @return a pointer to the first chunk (which is set "inuse")
+ */
+static void* split_chunk ( struct free_header* header, size_t size ) {
+
+    size_t left_size = header->size - size;
+
+    if ( left_size < sizeof( struct free_header ) + sizeof( struct footer ) ) {
+
+        size     += left_size;
+        left_size = 0;
+
+    } else {
+
+        add_free_chunk( (char*)header + size, left_size );
+    }
+
+    header->status = INUSE_STATUS;
+    header->size   = size;
+    header->next   = NULL;
+    header->prev   = NULL;
+
+    ((struct footer*)((char*)header + size) - 1)->size = size;
+
+    context->free_memory    -= size;
+    context->last_chunk_size = left_size;
+
+    return (struct inuse_header*)header + 1;
 }
 
 
