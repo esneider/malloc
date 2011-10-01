@@ -46,5 +46,18 @@ void init_malloc ( void* memory, size_t size );
 void* check_malloc ( void );
 
 
+/**
+ * Allocs a chunk of memory of a specified size
+ *
+ * For more info on the algorithm idea, go to
+ * http://gee.cs.oswego.edu/dl/html/malloc.html
+ *
+ * @param size  size of the memory trying to be allocated (in bytes)
+ *
+ * @return a pointer to the allocated memory, or NULL if an error ocurred
+ */
+void* malloc ( size_t size );
+
+
 #endif /* _MALLOC_H_ */
 

@@ -3,7 +3,7 @@
  *
  * @author Dario Sneidermanis
  *
- * TODO: split, malloc, free
+ * TODO: free
  *       calloc, realloc
  *       use a fenwick tree to optimize find_bin to log n
  *       use a trie/balanced tree in big enough bins to optimize find_chunk to
@@ -130,9 +130,9 @@ static struct memory_context* context;
  *
  * @param size  size of the memory (in bytes)
  *
- * @return the bin index
+ * @return a pointer to the bin
  */
-static size_t find_bin ( size_t size ) {
+static struct free_header* find_bin ( size_t size ) {
 
     size_t min_bin = 0, max_bin = BIN_NUMBER, curr_bin;
 
@@ -156,20 +156,22 @@ static size_t find_bin ( size_t size ) {
 /**
  * Finds the first chunk of memory >= to a given size in a given bin
  *
- * @param bin   bin to explore
+ * @param bin   pointer to bin to explore
  * @param size  size of memory (in bytes)
  *
- * @return pointer to the chunk's free header
+ * @return a pointer to the chunk's free header
  */
-inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
+inline static struct free_header* find_chunk ( struct free_header* bin,
+                                               size_t size )
+{
 
-    struct free_header* chunk = context->bins + bin;
+    struct free_header* chunk = bin;
 
     do {
 
         chunk = chunk->next;
 
-    } while ( chunk != context->bins + bin && chunk->size < size );
+    } while ( chunk != bin && chunk->size < size );
 
     return chunk;
 }
@@ -182,20 +184,22 @@ inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
  * is used to implement a tie breaking least-recently-used strategy,
  * which mantains (for some reason) low memory fragmentation
  *
- * @param bin   bin to explore
+ * @param bin   pointer to bin to explore
  * @param size  size of memory (in bytes)
  *
- * @return pointer to the chunk's free header
+ * @return a pointer to the chunk's free header
  */
-inline static struct free_header* find_upper_chunk ( size_t bin, size_t size ) {
+inline static struct free_header* find_upper_chunk ( struct free_header* bin,
+                                                     size_t size )
+{
 
-    struct free_header* chunk = context->bins + bin;
+    struct free_header* chunk = bin;
 
     do {
 
         chunk = chunk->next;
 
-    } while ( chunk != context->bins + bin && chunk->size <= size );
+    } while ( chunk != bin && chunk->size <= size );
 
     return chunk;
 }
@@ -342,6 +346,67 @@ void init_malloc ( void* memory, size_t size ) {
     }
 
     add_malloc_buffer( memory, size );
+}
+
+
+/**
+ * Allocs a chunk of memory of a specified size
+ *
+ * For more info on the algorithm idea, go to
+ * http://gee.cs.oswego.edu/dl/html/malloc.html
+ *
+ * @param size  size of the memory trying to be allocated (in bytes)
+ *
+ * @return a pointer to the allocated memory, or NULL if an error ocurred
+ */
+void* malloc ( size_t size ) {
+
+    struct free_header *bin, *chunk;
+
+    size += sizeof( struct inuse_header ) + sizeof( struct footer );
+
+    if ( size < sizeof( struct free_header ) + sizeof( struct footer ) )
+        size  = sizeof( struct free_header ) + sizeof( struct footer );
+
+    if ( size > free_memory )
+        return NULL;
+
+    /* find first non-empty large enough bin */
+
+    for ( bin = find_bin( size ); bin == bin->next; )
+
+        if ( ++bin >= context->bins + BIN_NUMBER )
+
+            return NULL;
+
+    /* find first large enough chunk */
+
+    chunk = find_chunk( bin, size );
+
+    if ( chunk == bin ) {
+
+        for ( bin++; bin == bin->next; )
+
+            if ( ++bin >= context->bins + BIN_NUMBER )
+
+                return NULL;
+
+        chunk = bin->next;
+    }
+
+    /* heuristic to improve locality */
+
+    if ( chunk->size > size && context->last_chunk_size >= size ) {
+
+        chunk = context->last_chunk;
+    }
+
+    /* take the chunk out of the bin */
+
+    chunk->prev->next = chunk->next;
+    chunk->next->prev = chunk->prev;
+
+    return split_chunk( chunk, size );
 }
 
 
