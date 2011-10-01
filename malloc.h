@@ -38,7 +38,7 @@ void init_malloc ( void* memory, size_t size );
 /**
  * Checks the integrity of the memory context
  *
- * Useful to detect buffer overflows and double frees
+ * Useful to detect buffer overflows and other memory corruptions
  *
  * @return NULL if no error was found, or a pointer to the block where the
  *         first memory corruption was detected
