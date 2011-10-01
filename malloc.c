@@ -4,7 +4,7 @@
  * @author Dario Sneidermanis
  *
  * TODO: split, malloc, free
- *       calloc, realloc, check_memory_corruption
+ *       calloc, realloc
  *       use a fenwick tree to optimize find_bin to log n
  *       use a trie/balanced tree in big enough bins to optimize find_chunk to
  *           log n
@@ -85,17 +85,17 @@ static const size_t bin_sizes[] = {
 struct free_header {
 
 	unsigned int status : 1;
-	unsigned int size : 31;
+	unsigned int size   : 31;
 
-	struct free_header* prev_pos;
-	struct free_header* next_pos;
+	struct free_header* next;
+	struct free_header* prev;
 };
 
 
 struct inuse_header {
 
 	unsigned int status : 1;
-	unsigned int size : 31;
+	unsigned int size   : 31;
 };
 
 
@@ -167,7 +167,7 @@ inline static struct free_header* find_chunk ( size_t bin, size_t size ) {
 
     do {
 
-        chunk = chunk->next_pos;
+        chunk = chunk->next;
 
     } while ( chunk != context->bins + bin && chunk->size < size );
 
@@ -193,7 +193,7 @@ inline static struct free_header* find_upper_chunk ( size_t bin, size_t size ) {
 
     do {
 
-        chunk = chunk->next_pos;
+        chunk = chunk->next;
 
     } while ( chunk != context->bins + bin && chunk->size <= size );
 
@@ -219,13 +219,13 @@ static void add_free_chunk ( void* memory, size_t size ) {
     header->status = FREE_STATUS;
     header->size   = size;
 
-    header->next_pos = find_upper_chunk( find_bin( size ), size );
-    header->prev_pos = header->next_pos->prev_pos;
+    header->next = find_upper_chunk( find_bin( size ), size );
+    header->prev = header->next->prev;
 
-    header->next_pos->prev_pos = header;
-    header->prev_pos->next_pos = header;
+    header->next->prev = header;
+    header->prev->next = header;
 
-    footer = (void*)( (char*)memory + size - sizeof( struct footer ) );
+    footer = (struct footer*)((char*)memory + size) - 1;
 
     footer->size = size;
 }
@@ -260,14 +260,14 @@ void add_malloc_buffer ( void* memory, size_t size ) {
     bound->header.size   = sizeof( struct bound );
     bound->footer.size   = sizeof( struct bound );
 
-    bound = (void*)( (char*)memory + size - sizeof( struct bound ) );
+    bound = (struct bound*)((char*)memory + size) - 1;
 
     bound->header.status = INUSE_STATUS;
     bound->header.size   = sizeof( struct bound );
     bound->footer.size   = sizeof( struct bound );
 
-    memory = (char*)memory + sizeof( struct bound );
-    size  -= sizeof( struct bound ) * 2;
+    memory = (struct bound*)memory + 1;
+    size  -= 2 * sizeof( struct bound );
 
     add_free_chunk( memory, size );
 
@@ -292,19 +292,105 @@ void init_malloc ( void* memory, size_t size ) {
     assert( size >= sizeof( struct memory_context ) );
 
     context = memory;
-    memory  = (char*)memory + sizeof( struct memory_context );
+    memory  = (struct memory_context*)memory + 1;
     size   -= sizeof( struct memory_context );
 
     context->free_memory = context->last_chunk_size = 0;
 
     for ( bin = context->bins; (void*)bin < memory; bin++ ) {
 
-        bin->size     = sizeof( struct free_header );
-        bin->next_pos = bin;
-        bin->prev_pos = bin;
+        bin->size = sizeof( struct free_header );
+        bin->next = bin;
+        bin->prev = bin;
     }
 
     add_malloc_buffer( memory, size );
 }
 
+
+/**
+ * Checks the integrity of the memory context
+ *
+ * Useful to detect buffer overflows and double frees
+ *
+ * @return NULL if no error was found, or a pointer to the block where the
+ *         first memory corruption was detected
+ */
+void* check_malloc ( void ) {
+
+    struct free_header *bin, *block, *last;
+    struct footer *footer;
+    size_t free_memory = context->free_memory;
+
+    for ( bin = context->bins; bin < context->bins + BIN_NUMBER; bin++ ) {
+
+        if ( bin->status != FREE_STATUS ) {
+
+            /* printf( "Error in context, bin %d\n", bin - context->bins ); */
+            return bin;
+        }
+
+        if ( bin->size != sizeof( struct free_header ) ) {
+
+            /* printf( "Error in context, bin %d\n", bin - context->bins ); */
+            return bin;
+        }
+
+        last = bin;
+
+        for ( block = bin->next; block != bin; block = block->next ) {
+
+            if ( block->status != FREE_STATUS ) {
+
+                /* printf( "Error in block header\n" ); */
+                return block;
+            }
+
+            if ( block->prev != last ) {
+
+                /* printf( "Error in block header\n" ); */
+                return block;
+            }
+
+            footer = (struct footer*)((char*)block + block->size) - 1;
+
+            if ( block->size != footer->size ) {
+
+                /* printf( "Error in block footer\n" ); */
+                return footer;
+            }
+
+            last = block;
+            free_memory -= block->size;
+        }
+    }
+
+    if ( free_memory ) {
+
+        /* printf( "Error in context, free memory amount inconcistency\n" ); */
+        return context;
+    }
+
+    return NULL;
+}
+
+
+#include <stdio.h>
+
+#define SIZE (1024*1024*32)
+
+char mem[ SIZE ], mem2[ SIZE/4 ];
+
+int main ( void ) {
+
+    init_malloc( mem, SIZE );
+
+    printf("%p\n", check_malloc() );
+
+    add_malloc_buffer( mem2, SIZE/4 );
+
+    printf("%p\n", check_malloc() );
+
+    return 0;
+}
 

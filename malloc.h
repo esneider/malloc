@@ -35,5 +35,16 @@ void add_malloc_buffer ( void* memory, size_t size );
 void init_malloc ( void* memory, size_t size );
 
 
+/**
+ * Checks the integrity of the memory context
+ *
+ * Useful to detect buffer overflows and double frees
+ *
+ * @return NULL if no error was found, or a pointer to the block where the
+ *         first memory corruption was detected
+ */
+void* check_malloc ( void );
+
+
 #endif /* _MALLOC_H_ */
 
