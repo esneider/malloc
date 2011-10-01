@@ -3,19 +3,13 @@
  *
  * @author Dario Sneidermanis
  *
- * TODO: free
- *       calloc, realloc
+ * TODO: calloc, realloc
  *       use a fenwick tree to optimize find_bin to log n
  *       use a trie/balanced tree in big enough bins to optimize find_chunk to
  *           log n
- */
-
-#include "malloc.h"
-#include <assert.h>
-
-
-/*
- * The main algorithm idea was taken from here:
+ *
+ *
+ * The main algorithm idea was taken from:
  *
  * http://gee.cs.oswego.edu/dl/html/malloc.html
  *
@@ -56,30 +50,12 @@
  *
  */
 
+#include "malloc.h"
+#include <assert.h>
 
-/*
- * Bin sizes from 16 bytes to 2 GB
- *
- * Note: bin_sizes[0] is never used, since a free_header must fit in a free
- *       chunk
- */
 
-#define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
-
-static const size_t bin_sizes[] = {
-
-	     8,    16,    24,    32,    40,    48,    56,    64,    72,    80,
-	    88,    96,   104,   112,   120,   128,   136,   144,   152,   160,
-	   168,   176,   184,   192,   200,   208,   216,   224,   232,   240,
-	   248,   256,   264,   272,   280,   288,   296,   304,   312,   320,
-	   328,   336,   344,   352,   360,   368,   376,   384,   392,   400,
-	   408,   416,   424,   432,   440,   448,   456,   464,   472,   480,
-	   488,   496,   504,   512,   576,   640,   768,  1024,  2048,  4096,
-	     0x2000,     0x4000,     0x8000,    0x10000,    0x20000,    0x40000,
-	    0x80000,   0x100000,   0x200000,   0x400000,   0x800000,  0x1000000,
-	  0x2000000,  0x4000000,  0x8000000, 0x10000000, 0x20000000, 0x40000000,
-	 0x80000000
-};
+#define FREE_STATUS  0
+#define INUSE_STATUS 1
 
 
 struct free_header {
@@ -105,10 +81,6 @@ struct footer {
 };
 
 
-#define FREE_STATUS  0
-#define INUSE_STATUS 1
-
-
 struct memory_context {
 
     size_t free_memory;
@@ -123,6 +95,31 @@ struct memory_context {
  * Global current memory context
  */
 static struct memory_context* context;
+
+
+/**
+ * Bin sizes from 16 bytes to 2 GB
+ *
+ * Note: bin_sizes[0] is never used, since a free_header must fit in a free
+ *       chunk
+ */
+
+#define BIN_NUMBER  ( sizeof( bin_sizes ) / sizeof( bin_sizes[0] ) )
+
+static const size_t bin_sizes[] = {
+
+	     8,    16,    24,    32,    40,    48,    56,    64,    72,    80,
+	    88,    96,   104,   112,   120,   128,   136,   144,   152,   160,
+	   168,   176,   184,   192,   200,   208,   216,   224,   232,   240,
+	   248,   256,   264,   272,   280,   288,   296,   304,   312,   320,
+	   328,   336,   344,   352,   360,   368,   376,   384,   392,   400,
+	   408,   416,   424,   432,   440,   448,   456,   464,   472,   480,
+	   488,   496,   504,   512,   576,   640,   768,  1024,  2048,  4096,
+	     0x2000,     0x4000,     0x8000,    0x10000,    0x20000,    0x40000,
+	    0x80000,   0x100000,   0x200000,   0x400000,   0x800000,  0x1000000,
+	  0x2000000,  0x4000000,  0x8000000, 0x10000000, 0x20000000, 0x40000000,
+	 0x80000000
+};
 
 
 /**
@@ -164,7 +161,6 @@ static struct free_header* find_bin ( size_t size ) {
 inline static struct free_header* find_chunk ( struct free_header* bin,
                                                size_t size )
 {
-
     struct free_header* chunk = bin;
 
     do {
@@ -192,7 +188,6 @@ inline static struct free_header* find_chunk ( struct free_header* bin,
 inline static struct free_header* find_upper_chunk ( struct free_header* bin,
                                                      size_t size )
 {
-
     struct free_header* chunk = bin;
 
     do {
@@ -553,6 +548,8 @@ void* check_malloc ( void ) {
 }
 
 
+/*
+
 #include <stdio.h>
 
 #define SIZE (1024*1024*32)
@@ -615,4 +612,6 @@ int main ( void ) {
 
     return 0;
 }
+
+*/
 
