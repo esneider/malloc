@@ -59,5 +59,13 @@ void* check_malloc ( void );
 void* malloc ( size_t size );
 
 
+/**
+ * Returns a piece of allocated memory
+ *
+ * @param memory  pointer to the memory to be freed
+ */
+void free ( void* memory );
+
+
 #endif /* _MALLOC_H_ */
 
