@@ -411,6 +411,25 @@ void* malloc ( size_t size ) {
 
 
 /**
+ * Returns a piece of allocated memory
+ *
+ * @param memory  pointer to the memory to be freed
+ */
+void free ( void* memory ) {
+
+    struct free_header* header = memory;
+
+    if ( memory == NULL )
+        return;
+
+    header--;
+
+    /* Do not try to free the context */
+    assert( header < context || context+1 < header );
+}
+
+
+/**
  * Checks the integrity of the memory context
  *
  * Useful to detect buffer overflows and other memory corruptions
