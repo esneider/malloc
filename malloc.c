@@ -118,7 +118,6 @@ struct memory_context {
 };
 
 
-180*sizeof(void*)+91*sizeof(size_t)
 /**
  * Global current memory context
  */
