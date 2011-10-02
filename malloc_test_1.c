@@ -117,8 +117,14 @@ static int rand ( void ) {
 	};
 
 	static size_t pos = 0;
+    static int last = 0;
 
-	return pos < sizeof(num)/sizeof(int) ? num[pos++] : num[pos = 0];
+    last *= 31;
+    last += pos < sizeof(num)/sizeof(int) ? num[pos++] : num[pos = 0];
+    if ( last < 0 )
+        last = -(last+1);
+
+    return last;
 }
 
 
@@ -129,15 +135,16 @@ char memory [ MEM_SIZE ];
 
 int main( void ) {
 
-	init_malloc( MEM_SIZE, memory );
+	init_malloc( memory, MEM_SIZE );
 
-	print_memory_data();
+    /* this should not be done :P */
+    printf( "free memory: %zd\n", *(size_t*)get_malloc_context() );
 
-	int ** vector = malloc( SIZE * sizeof(int*) );
+	int ** vector = malloc( SIZE * sizeof( int* ) );
 
 	if ( vector == NULL ) {
 
-		printf("nothing\n");
+		printf( "nothing\n" );
 		return 1;
 	}
 
@@ -150,12 +157,11 @@ int main( void ) {
 
 		if ( vector[j] ) {
 
-			printf("\nfreeing vector[%d] = %p\n", j, vector[j] );
+			printf( "\nfreeing vector[%d] = %p\n", j, vector[j] );
 
 			free( vector[j] );
 
 			vector[j] = NULL;
-			// print_memory_data();
 
 		} else {
 
@@ -163,14 +169,14 @@ int main( void ) {
 
 			if ( ( vector[j] = malloc( (unsigned)k * sizeof(int) ) ) ) {
 
-				printf("allocated vector[%d] = %p (%d)\n", j, vector[j], k );
+				printf( "allocated vector[%d] = %p (%d)\n", j, vector[j], k );
 
 				for( ; k > 0; k-- )
 					vector[j][k-1] = rand();
 
 			} else {
 
-				printf("error while allocating in vector[%d]\n", j );
+				printf( "error while allocating in vector[%d]\n", j );
             }
 		}
 	}
@@ -179,16 +185,18 @@ int main( void ) {
 
 		if ( vector[i] ) {
 
-			printf("freeing vector[%d] = %p\n", i, vector[i] );
+			printf( "freeing vector[%d] = %p\n", i, vector[i] );
 			free( vector[i] );
-			// print_memory_data();
 			vector[i] = NULL;
 		}
 
-	printf("\n");
 	free( vector );
 
-	print_memory_data();
+    /* this should not be done :P */
+    printf( "free memory: %zd\n", *(size_t*)get_malloc_context() );
+
+	if ( check_malloc() )
+        printf( "ERROR\n" );
 
 	return 0;
 }
