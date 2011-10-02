@@ -138,7 +138,7 @@ int main( void ) {
 	init_malloc( memory, MEM_SIZE );
 
     /* this should not be done :P */
-    printf( "free memory: %zd\n", *(size_t*)get_malloc_context() );
+    size_t free_memory = *(size_t*)get_malloc_context();
 
 	int ** vector = malloc( SIZE * sizeof( int* ) );
 
@@ -157,7 +157,7 @@ int main( void ) {
 
 		if ( vector[j] ) {
 
-			printf( "\nfreeing vector[%d] = %p\n", j, vector[j] );
+			printf( "\nfreeing vector[%d] = %p\n", j, (void*)vector[j] );
 
 			free( vector[j] );
 
@@ -169,7 +169,8 @@ int main( void ) {
 
 			if ( ( vector[j] = malloc( (unsigned)k * sizeof(int) ) ) ) {
 
-				printf( "allocated vector[%d] = %p (%d)\n", j, vector[j], k );
+				printf( "allocated vector[%d] = %p (%d)\n", j,
+                        (void*)vector[j], k );
 
 				for( ; k > 0; k-- )
 					vector[j][k-1] = rand();
@@ -185,18 +186,22 @@ int main( void ) {
 
 		if ( vector[i] ) {
 
-			printf( "freeing vector[%d] = %p\n", i, vector[i] );
+			printf( "freeing vector[%d] = %p\n", i, (void*)vector[i] );
 			free( vector[i] );
 			vector[i] = NULL;
 		}
 
 	free( vector );
 
-    /* this should not be done :P */
-    printf( "free memory: %zd\n", *(size_t*)get_malloc_context() );
+    printf("\n");
 
-	if ( check_malloc() )
-        printf( "ERROR\n" );
+    /* this should not be done :P */
+    free_memory -= *(size_t*)get_malloc_context();
+
+	if ( free_memory || check_malloc() )
+        printf( "THERE WAS AN ERROR\n" );
+    else
+        printf( "SUCCESSFUL RUN!\n" );
 
 	return 0;
 }
