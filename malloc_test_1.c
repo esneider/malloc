@@ -1,7 +1,9 @@
 /**
  * @file malloc_test.c
  *
+ * @author Dario Sneidermanis
  */
+
 #include <stdio.h>
 #include "malloc.h"
 

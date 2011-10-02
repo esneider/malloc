@@ -86,5 +86,22 @@ void* get_malloc_context ( void );
 void set_malloc_context ( void* new_context );
 
 
+/**
+ * Set an external allocator. When malloc runs out of memory, the provided
+ * allocation function will be called
+ *
+ * This function should receive a first parameter with the minimum size of
+ * memory to be allocated, and a second parameter where the actual size of
+ * the memory allocated will be saved
+ * It should return a pointer to the allocated memory, or NULL if an error
+ * ocurred
+ *
+ * If the provided allocator is NULL, no external allocator will be used
+ *
+ * @param allocator  allocation function
+ */
+void set_external_alloc ( void* ( *allocator )( size_t , size_t* ) );
+
+
 #endif /* _MALLOC_H_ */
 

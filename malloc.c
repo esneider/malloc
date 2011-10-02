@@ -111,6 +111,8 @@ struct memory_context {
     size_t free_memory;
     size_t last_chunk_size;
 
+    void* ( *external_alloc )( size_t, size_t* );
+
     struct free_header* last_chunk;
     struct free_header  bins[ BIN_NUMBER ];
 };
@@ -333,7 +335,9 @@ void init_malloc ( void* memory, size_t size ) {
     memory  = (struct memory_context*)memory + 1;
     size   -= sizeof( struct memory_context );
 
-    context->free_memory = context->last_chunk_size = 0;
+    context->free_memory     = 0;
+    context->last_chunk_size = 0;
+    context->external_alloc  = NULL;
 
     for ( bin = context->bins; (void*)bin < memory; bin++ ) {
 
@@ -347,6 +351,37 @@ void init_malloc ( void* memory, size_t size ) {
 
 
 /**
+ * Called when current free memory is not enough
+ *
+ * @param size  size of the requested memory
+ *
+ * @return a pointer to the allocated memory, or NULL if an error ocurred
+ */
+static void* out_of_memory ( size_t size ) {
+
+    size_t total_size, new_size;
+    void   *new_memory;
+
+    if ( !context->external_alloc )
+        return NULL;
+
+    total_size = size + 2 * ( sizeof( struct inuse_header ) +
+                              sizeof( struct footer ) );
+
+    new_memory = context->external_alloc( total_size, &new_size );
+
+    if ( !new_memory || new_size < total_size )
+        return NULL;
+
+    add_malloc_buffer( new_memory, new_size );
+
+    size -= sizeof( struct inuse_header ) + sizeof( struct footer );
+
+    return malloc( size );
+}
+
+
+/**
  * Allocs a chunk of memory of a specified size
  *
  * For more info on the algorithm idea, go to
@@ -354,7 +389,7 @@ void init_malloc ( void* memory, size_t size ) {
  *
  * @param size  size of the memory trying to be allocated (in bytes)
  *
- * @return a pointer to the allocated memory, or NUMoretzLL if an error ocurred
+ * @return a pointer to the allocated memory, or NULL if an error ocurred
  */
 void* malloc ( size_t size ) {
 
@@ -369,7 +404,7 @@ void* malloc ( size_t size ) {
         size  = sizeof( struct free_header ) + sizeof( struct footer );
 
     if ( size > context->free_memory )
-        return NULL;
+        return out_of_memory( size );
 
     /* find first non-empty large enough bin */
 
@@ -377,7 +412,7 @@ void* malloc ( size_t size ) {
 
         if ( ++bin >= context->bins + BIN_NUMBER )
 
-            return NULL;
+            return out_of_memory( size );
 
     /* find first large enough chunk */
 
@@ -389,7 +424,7 @@ void* malloc ( size_t size ) {
 
             if ( ++bin >= context->bins + BIN_NUMBER )
 
-                return NULL;
+                return out_of_memory( size );
 
         chunk = bin->next;
     }
@@ -570,5 +605,25 @@ void* get_malloc_context ( void ) {
 void set_malloc_context ( void* new_context ) {
 
     context = new_context;
+}
+
+
+/**
+ * Set an external allocator. When malloc runs out of memory, the provided
+ * allocation function will be called
+ *
+ * This function should receive a first parameter with the minimum size of
+ * memory to be allocated, and a second parameter where the actual size of
+ * the memory allocated will be saved
+ * It should return a pointer to the allocated memory, or NULL if an error
+ * ocurred
+ *
+ * If the provided allocator is NULL, no external allocator will be used
+ *
+ * @param allocator  allocation function
+ */
+void set_external_alloc ( void* ( *allocator )( size_t , size_t* ) ) {
+
+    context->external_alloc = allocator;
 }
 
