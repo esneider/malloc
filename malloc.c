@@ -4,9 +4,9 @@
  * @author Dario Sneidermanis
  *
  * TODO: calloc, realloc
- *       use a fenwick tree to optimize find_bin to log n
- *       use a trie/balanced tree in big enough bins to optimize find_chunk to
- *           log n
+ *       use a fenwick tree to optimize find_bin down to log n (if worth it)
+ *       use a trie/balanced tree in big enough bins to optimize find_chunk
+ *           down to log n
  *
  *
  * The main algorithm idea was taken from:
@@ -323,7 +323,7 @@ void add_malloc_buffer ( void* memory, size_t size ) {
  * set manually)
  *
  * @param memory  memory buffer
- * @param size    memory buffer size (in bytes)Moretz
+ * @param size    memory buffer size (in bytes)
  */
 void init_malloc ( void* memory, size_t size ) {
 
@@ -404,6 +404,7 @@ void* malloc ( size_t size ) {
         size  = sizeof( struct free_header ) + sizeof( struct footer );
 
     if ( size > context->free_memory )
+
         return out_of_memory( size );
 
     /* find first non-empty large enough bin */
