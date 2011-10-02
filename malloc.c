@@ -118,6 +118,7 @@ struct memory_context {
 };
 
 
+180*sizeof(void*)+91*sizeof(size_t)
 /**
  * Global current memory context
  */
@@ -321,6 +322,9 @@ void add_malloc_buffer ( void* memory, size_t size ) {
  *
  * Must be called before any malloc or free (unless a memory context has been
  * set manually)
+ *
+ * Size must be, at least, 180*sizeof( void* ) + 91*sizeof( size_t ), to let a
+ * memory context fit
  *
  * @param memory  memory buffer
  * @param size    memory buffer size (in bytes)
