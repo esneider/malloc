@@ -3,7 +3,7 @@
  *
  * @author Dario Sneidermanis
  *
- * TODO: calloc, realloc
+ * TODO: realloc
  *       use a fenwick tree to optimize find_bin down to log n (if worth it)
  *       use a trie/balanced tree in big enough bins to optimize find_chunk
  *           down to log n
@@ -52,6 +52,7 @@
 
 #include "malloc.h"
 #include <assert.h>
+#include <string.h> /* for memset in calloc */
 
 
 /**
@@ -61,10 +62,6 @@
  * @see malloc
  */
 #define MAX_SMALL_REQUEST 256
-
-
-#define FREE_STATUS  0
-#define INUSE_STATUS 1
 
 
 struct free_header {
@@ -88,6 +85,18 @@ struct footer {
 
     unsigned int size : 32;
 };
+
+
+#define FREE_STATUS  0
+
+#define INUSE_STATUS 1
+
+
+#define MIN_FREE_CHUNK_SIZE  ( sizeof( struct free_header ) + \
+                               sizeof( struct footer ) )
+
+#define MIN_INUSE_CHUNK_SIZE ( sizeof( struct inuse_header ) + \
+                               sizeof( struct footer ) )
 
 
 /**
@@ -222,7 +231,7 @@ static void add_free_chunk ( void* memory, size_t size ) {
     struct free_header* header;
     struct footer*      footer;
 
-    assert( size >= sizeof( struct free_header ) + sizeof( struct footer ) );
+    assert( size >= MIN_FREE_CHUNK_SIZE );
 
     header = memory;
 
@@ -254,9 +263,9 @@ static void* split_chunk ( struct free_header* header, size_t size ) {
 
     size_t left_size = header->size - size;
 
-    if ( left_size < sizeof( struct free_header ) + sizeof( struct footer ) ) {
+    if ( left_size < MIN_FREE_CHUNK_SIZE ) {
 
-        size     += left_size;
+        size += left_size;
         left_size = 0;
 
     } else {
@@ -297,11 +306,8 @@ void add_malloc_buffer ( void* memory, size_t size ) {
 
     } *bound;
 
-    if ( size < sizeof( struct bound ) * 2 + sizeof( struct free_header ) +
-                sizeof( struct footer ) )
-    {
+    if ( size < 2 * sizeof( struct bound ) + MIN_FREE_CHUNK_SIZE )
         return;
-    }
 
     bound  = memory;
 
@@ -369,7 +375,7 @@ void init_malloc ( void* memory, size_t size ) {
  *
  * @return a pointer to the allocated memory, or NULL if an error ocurred
  */
-static void* out_of_memory ( size_t size ) {
+inline static void* out_of_memory ( size_t size ) {
 
     size_t total_size, new_size;
     void   *new_memory;
@@ -377,8 +383,7 @@ static void* out_of_memory ( size_t size ) {
     if ( !context->external_alloc )
         return NULL;
 
-    total_size = size + 2 * ( sizeof( struct inuse_header ) +
-                              sizeof( struct footer ) );
+    total_size = size + 2 * MIN_INUSE_CHUNK_SIZE;
 
     new_memory = context->external_alloc( total_size, &new_size );
 
@@ -387,7 +392,7 @@ static void* out_of_memory ( size_t size ) {
 
     add_malloc_buffer( new_memory, new_size );
 
-    size -= sizeof( struct inuse_header ) + sizeof( struct footer );
+    size -= MIN_INUSE_CHUNK_SIZE;
 
     return malloc( size );
 }
@@ -407,13 +412,10 @@ void* malloc ( size_t size ) {
 
     struct free_header *bin, *chunk;
 
-    if ( size == 0 )
-        return NULL;
+    size += MIN_INUSE_CHUNK_SIZE;
 
-    size += sizeof( struct inuse_header ) + sizeof( struct footer );
-
-    if ( size < sizeof( struct free_header ) + sizeof( struct footer ) )
-        size  = sizeof( struct free_header ) + sizeof( struct footer );
+    if ( size < MIN_FREE_CHUNK_SIZE )
+        size  = MIN_FREE_CHUNK_SIZE;
 
     if ( size > context->free_memory )
 
@@ -457,6 +459,27 @@ void* malloc ( size_t size ) {
     chunk->next->prev = chunk->prev;
 
     return split_chunk( chunk, size );
+}
+
+
+/**
+ * Allocates a chunk of memory large enough for @a count objects that are
+ * @a size bytes each. The allocated memory is filled with 0s
+ *
+ * @param count  number of objects
+ * @param size   size of each object (in bytes)
+ *
+ * @return a pointer to the allocated memory, or NULL if an error ocurred
+ */
+void* calloc ( size_t count, size_t size ) {
+
+    size_t total_size = count * size;
+    void*  memory     = malloc( total_size );
+
+    if ( memory )
+        memset( memory, 0, total_size );
+
+    return memory;
 }
 
 
@@ -529,6 +552,9 @@ void free ( void* memory ) {
 
     add_free_chunk( header, size );
 }
+
+
+// TODO realloc
 
 
 /**

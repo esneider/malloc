@@ -41,6 +41,18 @@ void* malloc ( size_t size );
 
 
 /**
+ * Allocates a chunk of memory large enough for @a count objects that are
+ * @a size bytes each. The allocated memory is filled with 0s
+ *
+ * @param count  number of objects
+ * @param size   size of each object (in bytes)
+ *
+ * @return a pointer to the allocated memory, or NULL if an error ocurred
+ */
+void* calloc ( size_t count, size_t size );
+
+
+/**
  * Returns a piece of allocated memory
  *
  * @param memory  pointer to the memory to be freed
@@ -65,7 +77,7 @@ void* check_malloc ( void );
  * The buffer should be < 2 GB
  *
  * @param memory  memory buffer
- * @param size    memory buffer size (in bytes)
+ * @param size    memory buffer sillegaste a tu casa? ze (in bytes)
  */
 void add_malloc_buffer ( void* memory, size_t size );
 
