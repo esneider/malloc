@@ -54,30 +54,39 @@
 #include <assert.h>
 
 
+/**
+ * If the requested size is smaller than this, and a perfect fit isn't found,
+ * try to use the chunk contiguous to the last allocation
+ *
+ * @see malloc
+ */
+#define MAX_SMALL_REQUEST 256
+
+
 #define FREE_STATUS  0
 #define INUSE_STATUS 1
 
 
 struct free_header {
 
-	unsigned int status : 1;
-	unsigned int size   : 31;
+    unsigned int status : 1;
+    unsigned int size   : 31;
 
-	struct free_header* next;
-	struct free_header* prev;
+    struct free_header* next;
+    struct free_header* prev;
 };
 
 
 struct inuse_header {
 
-	unsigned int status : 1;
-	unsigned int size   : 31;
+    unsigned int status : 1;
+    unsigned int size   : 31;
 };
 
 
 struct footer {
 
-	unsigned int size : 32;
+    unsigned int size : 32;
 };
 
 
@@ -92,17 +101,17 @@ struct footer {
 
 static const size_t bin_sizes[] = {
 
-	     8,    16,    24,    32,    40,    48,    56,    64,    72,    80,
-	    88,    96,   104,   112,   120,   128,   136,   144,   152,   160,
-	   168,   176,   184,   192,   200,   208,   216,   224,   232,   240,
-	   248,   256,   264,   272,   280,   288,   296,   304,   312,   320,
-	   328,   336,   344,   352,   360,   368,   376,   384,   392,   400,
-	   408,   416,   424,   432,   440,   448,   456,   464,   472,   480,
-	   488,   496,   504,   512,   576,   640,   768,  1024,  2048,  4096,
-	     0x2000,     0x4000,     0x8000,    0x10000,    0x20000,    0x40000,
-	    0x80000,   0x100000,   0x200000,   0x400000,   0x800000,  0x1000000,
-	  0x2000000,  0x4000000,  0x8000000, 0x10000000, 0x20000000, 0x40000000,
-	 0x80000000
+         8,    16,    24,    32,    40,    48,    56,    64,    72,    80,
+        88,    96,   104,   112,   120,   128,   136,   144,   152,   160,
+       168,   176,   184,   192,   200,   208,   216,   224,   232,   240,
+       248,   256,   264,   272,   280,   288,   296,   304,   312,   320,
+       328,   336,   344,   352,   360,   368,   376,   384,   392,   400,
+       408,   416,   424,   432,   440,   448,   456,   464,   472,   480,
+       488,   496,   504,   512,   576,   640,   768,  1024,  2048,  4096,
+         0x2000,     0x4000,     0x8000,    0x10000,    0x20000,    0x40000,
+        0x80000,   0x100000,   0x200000,   0x400000,   0x800000,  0x1000000,
+      0x2000000,  0x4000000,  0x8000000, 0x10000000, 0x20000000, 0x40000000,
+     0x80000000
 };
 
 
@@ -435,8 +444,10 @@ void* malloc ( size_t size ) {
 
     /* heuristic to improve locality */
 
-    if ( chunk->size > size && context->last_chunk_size >= size ) {
-
+    if ( size <  chunk->size              &&
+         size <= context->last_chunk_size &&
+         size <= MAX_SMALL_REQUEST )
+    {
         chunk = context->last_chunk;
     }
 
