@@ -67,5 +67,24 @@ void* check_malloc ( void );
 void add_malloc_buffer ( void* memory, size_t size );
 
 
+/**
+ * Get a pointer with all malloc data, including all data-structures containing
+ * the free chunks of memory
+ *
+ * Usefull when several separate malloc contexts are needed
+ *
+ * @return pointer to current context
+ */
+void* get_malloc_context ( void );
+
+
+/**
+ * Set the current context to a previously gotten context
+ *
+ * @param new_context pointer to a context
+ */
+void set_malloc_context ( void* new_context );
+
+
 #endif /* _MALLOC_H_ */
 

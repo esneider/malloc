@@ -548,6 +548,31 @@ void* check_malloc ( void ) {
 }
 
 
+/**
+ * Get a pointer with all malloc data, including all data-structures containing
+ * the free chunks of memory
+ *
+ * Usefull when several separate malloc contexts are needed
+ *
+ * @return pointer to current context
+ */
+void* get_malloc_context ( void ) {
+
+    return context;
+}
+
+
+/**
+ * Set the current context to a previously gotten context
+ *
+ * @param context pointer to a context
+ */
+void set_malloc_context ( void* new_context ) {
+
+    context = new_context;
+}
+
+
 /*
 
 #include <stdio.h>
