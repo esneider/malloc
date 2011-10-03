@@ -3,8 +3,7 @@
  *
  * @author Dario Sneidermanis
  *
- * TODO: realloc
- *       use a fenwick tree to optimize find_bin down to log n (if worth it)
+ * TODO: use a fenwick tree to optimize find_bin down to log n (if worth it)
  *       use a trie/balanced tree in big enough bins to optimize find_chunk
  *           down to log n
  *
@@ -554,7 +553,65 @@ void free ( void* memory ) {
 }
 
 
-// TODO realloc
+/**
+ *
+ */
+void* realloc ( void* memory, size_t size ) {
+
+    struct inuse_header* header;
+    struct footer*       footer;
+    struct free_header*  next_header;
+
+    if ( !memory )
+        return malloc( size );
+
+    header = (struct inuse_header*)memory - 1;
+    footer = (struct footer*)( (char*)header + header->size ) - 1;
+
+    assert( header->status == INUSE_STATUS );
+    assert( header->size   == footer->size );
+
+    size += MIN_INUSE_CHUNK_SIZE;
+
+    if ( size <= header->size ) {
+
+        size_t left_size = header->size - size;
+
+        if ( left_size < MIN_FREE_CHUNK_SIZE )
+            return memory;
+
+        header->size = size;
+
+        header = (struct inuse_header*)( (char*)header + size );
+
+        header->status = INUSE_STATUS;
+        header->size   = left_size;
+        footer->size   = left_size;
+
+        footer = (struct footer*)header - 1;
+
+        footer->size = size;
+
+        free( header + 1 );
+
+        return memory;
+    }
+
+    next_header = (struct free_header*)( footer + 1 );
+
+    if ( next_header->status == INUSE_STATUS ||
+         next_header->size + header->size < size )
+    {
+           void* new_memory = malloc( size );
+
+           if ( new_memory ) {
+
+ //              memcpy( new_memory, /* TODO TODO */ );
+           }
+
+           return new
+    }
+}
 
 
 /**
