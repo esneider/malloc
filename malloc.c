@@ -566,6 +566,7 @@ void free ( void* memory ) {
  */
 void* realloc ( void* memory, size_t size ) {
 
+    void*                new_memory;
     struct inuse_header* header;
     struct footer*       footer;
     struct free_header*  next_header;
@@ -634,7 +635,7 @@ void* realloc ( void* memory, size_t size ) {
 
     size -= MIN_INUSE_CHUNK_SIZE;
 
-    void* new_memory = malloc( size );
+    new_memory = malloc( size );
 
     if ( new_memory ) {
 
