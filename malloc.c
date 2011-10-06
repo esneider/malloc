@@ -51,7 +51,7 @@
 
 #include "malloc.h"
 #include <assert.h>
-#include <string.h> /* for memset in calloc */
+#include <string.h> /* for memset in calloc an memcpy in realloc */
 
 
 /**
@@ -501,10 +501,12 @@ void free ( void* memory ) {
     size   = header->size;
 
     /* Do not try to free the context */
+
     assert( (char*)header + header->size <= (char*)context ||
             (char*)header                >= (char*)( context + 1 ) );
 
     /* Check chunk invariants */
+
     assert( header->status == INUSE_STATUS );
     assert( header->size   == footer->size );
 
@@ -554,7 +556,13 @@ void free ( void* memory ) {
 
 
 /**
+ * Resizes a previouly malloc'ed chunk of memory to a given new size
  *
+ * @param memory  pointer to the memory to be resized
+ * @param size    new desired size
+ *
+ * @return a pointer to the new chunk (may be different from original), or
+ *         NULL if an error ocurred
  */
 void* realloc ( void* memory, size_t size ) {
 
@@ -572,6 +580,8 @@ void* realloc ( void* memory, size_t size ) {
     assert( header->size   == footer->size );
 
     size += MIN_INUSE_CHUNK_SIZE;
+
+    /* if fits in current chunk */
 
     if ( size <= header->size ) {
 
@@ -599,18 +609,40 @@ void* realloc ( void* memory, size_t size ) {
 
     next_header = (struct free_header*)( footer + 1 );
 
-    if ( next_header->status == INUSE_STATUS ||
-         next_header->size + header->size < size )
+    /* if fits in current and (free) next chunk */
+
+    if ( next_header->status == FREE_STATUS &&
+         next_header->size + (size_t)header->size < size )
     {
-           void* new_memory = malloc( size );
+        footer = (struct footer*)( (char*)footer + next_header->size );
 
-           if ( new_memory ) {
+        footer->size = header->size += next_header->size;
 
- //              memcpy( new_memory, /* TODO TODO */ );
-           }
+        next_header->next->prev = next_header->prev;
+        next_header->prev->next = next_header->next;
 
-           return new
+        next_header->next = NULL;
+        next_header->prev = NULL;
+
+        context->free_memory    -= next_header->size;
+        context->last_chunk_size = 0;
+
+        return memory;
     }
+
+    /* else use an entirely new chunk */
+
+    size -= MIN_INUSE_CHUNK_SIZE;
+
+    void* new_memory = malloc( size );
+
+    if ( new_memory ) {
+
+        memcpy( new_memory, memory, size );
+        free( memory );
+    }
+
+    return new_memory;
 }
 
 

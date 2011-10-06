@@ -53,6 +53,18 @@ void* calloc ( size_t count, size_t size );
 
 
 /**
+ * Resizes a previouly malloc'ed chunk of memory to a given new size
+ *
+ * @param memory  pointer to the memory to be resized
+ * @param size    new desired size
+ *
+ * @return a pointer to the new chunk (may be different from original), or
+ *         NULL if an error ocurred
+ */
+void* realloc ( void* memory, size_t size );
+
+
+/**
  * Returns a piece of allocated memory
  *
  * @param memory  pointer to the memory to be freed
