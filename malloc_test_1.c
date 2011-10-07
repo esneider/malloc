@@ -10,8 +10,9 @@
 
 #define SIZE       50    /* max number of simulaneous alloc'ed chunks */
 #define RUNS       5000  /* total number of mallocs/frees */
-#define MAX_ALLOC  1000  /* max allocation size (in bytes) */
-#define MEM_SIZE   10    /* size of memory pool (in MB) */
+#define MAX_ALLOC  50000 /* max allocation size (in bytes) */
+#define MEM_SIZE   8     /* size of memory pool (in MB) */
+#define VERBOSITY  0     /* log to screen */
 
 
 static int rand ( void ) {
@@ -161,7 +162,8 @@ int main( void ) {
 
         if ( vector[j] ) {
 
-            printf( "\nfreeing vector[%d] = %p\n", j, (void*)vector[j] );
+            if ( VERBOSITY )
+                printf( "\nfreeing vector[%d] = %p\n", j, (void*)vector[j] );
 
             free( vector[j] );
 
@@ -173,15 +175,17 @@ int main( void ) {
 
             if ( ( vector[j] = malloc( (unsigned)k * sizeof(int) ) ) ) {
 
-                printf( "allocated vector[%d] = %p (%d)\n", j,
-                        (void*)vector[j], k );
+                if ( VERBOSITY )
+                    printf( "allocated vector[%d] = %p (%d)\n", j,
+                            (void*)vector[j], k );
 
                 for( ; k > 0; k-- )
                     vector[j][k-1] = rand();
 
             } else {
 
-                printf( "error while allocating in vector[%d]\n", j );
+                if ( VERBOSITY )
+                    printf( "could not allocate %ld bytes\n", k * sizeof(int) );
             }
         }
     }
@@ -190,7 +194,9 @@ int main( void ) {
 
         if ( vector[i] ) {
 
-            printf( "freeing vector[%d] = %p\n", i, (void*)vector[i] );
+            if ( VERBOSITY )
+                printf( "freeing vector[%d] = %p\n", i, (void*)vector[i] );
+
             free( vector[i] );
             vector[i] = NULL;
         }
