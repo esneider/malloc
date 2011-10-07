@@ -8,9 +8,11 @@
 #include "malloc.h"
 
 
-#define SIZE       50
-#define RUNS       5000
-#define MAX_ALLOC  1000
+#define SIZE       50    /* max number of simulaneous alloc'ed chunks */
+#define RUNS       5000  /* total number of mallocs/frees */
+#define MAX_ALLOC  1000  /* max allocation size (in bytes) */
+#define MEM_SIZE   10    /* size of memory pool (in MB) */
+
 
 static int rand ( void ) {
 
@@ -130,14 +132,14 @@ static int rand ( void ) {
 }
 
 
-#define MEM_SIZE (10 * 1024 * 1024)
+#define BYTE_MEM_SIZE ( 1024 * 1024 * MEM_SIZE )
 
-char memory [ MEM_SIZE ];
+char memory [ BYTE_MEM_SIZE ];
 
 
 int main( void ) {
 
-    init_malloc( memory, MEM_SIZE );
+    init_malloc( memory, BYTE_MEM_SIZE );
 
     /* this should not be done :P */
     size_t free_memory = *(size_t*)get_malloc_context();
