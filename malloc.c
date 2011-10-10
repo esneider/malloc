@@ -6,6 +6,8 @@
  * TODO: use a fenwick tree to optimize find_bin down to log n (if worth it)
  *       use a trie/balanced tree in big enough bins to optimize find_chunk
  *           down to log n
+ *       support alignment
+ *       free external alloc'ed memory
  *
  *
  * The main algorithm idea was taken from:
