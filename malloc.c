@@ -51,7 +51,7 @@
 
 #include "malloc.h"
 #include <assert.h>
-#include <string.h> /* for memset in calloc an memcpy in realloc */
+#include <string.h> /* for memset in calloc and memcpy in realloc */
 
 
 /**
