@@ -8,6 +8,7 @@
  *           down to log n
  *       support alignment
  *       free external alloc'ed memory
+ *       thread safeness
  *
  *
  * The main algorithm idea was taken from:
