@@ -1,8 +1,18 @@
 /**
- * @file malloc.c
+ * malloc.c - C memory allocator
  *
- * @author Dario Sneidermanis
+ * Written in 2011 by Dario Sneidermanis (dariosn@gmail.com)
  *
+ * To the extent possible under law, the author(s) have dedicated all copyright
+ * and related and neighboring rights to this software to the public domain
+ * worldwide. This software is distributed without any warranty.
+ *
+ * You should have received a copy of the CC0 Public Domain Dedication along
+ * with this software. If not, see
+ * http://creativecommons.org/publicdomain/zero/1.0/
+ */
+
+/**
  * TODO: use a fenwick tree to optimize find_bin down to log n (if worth it)
  *       use a trie/balanced tree in big enough bins to optimize find_chunk
  *           down to log n
